@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Found IT</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top Nav -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">FI</div>
+      <div>
+        <div class="title">Found IT</div>
+        <div class="subtitle">Campus Lost & Found</div>
+      </div>
+    </div>
+
+    <nav class="top-actions" id="topActions">
+      <!-- injected by JS -->
+    </nav>
+  </header>
+
+  <!-- App Shell -->
+  <main class="shell">
+    <!-- Sidebar (only shown when logged in) -->
+    <aside class="sidebar hidden" id="sidebar">
+      <button class="nav-item" data-route="dashboard">Dashboard</button>
+      <button class="nav-item" data-route="browse">Browse</button>
+      <button class="nav-item" data-route="report-lost">Report Lost</button>
+      <button class="nav-item" data-route="report-found">Report Found</button>
+      <button class="nav-item" data-route="my-reports">My Reports</button>
+
+      <!-- ✅ MUST EXIST -->
+      <div id="adminNavSlot"></div>
+
+      <button class="nav-item" data-route="settings">Settings</button>
+      <button class="nav-item danger" id="logoutBtn">Logout</button>
+    </aside>
+
+    <!-- Content -->
+    <section class="content" id="view">
+      <!-- injected by JS -->
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© <span id="year"></span> Found IT</span>
+    <span class="dot">•</span>
+    <span>Prototype build</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
