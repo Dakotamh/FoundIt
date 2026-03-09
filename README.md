@@ -1,1 +1,2 @@
-Lost & Found web application for college campus UNCP (Capstone project)
+Web-Based application for college campus UNCP (ITC-4940 Capstone project). My role in this project is to make the database as well as plan out the different features and how to translate ideas into the programming software. Found.IT is a Lost & Found application to solve the issue on Campus with students losing their keys and never being able to find them. 
+The Project was made with MySQL to automate lost/found item queries as well as HTML, CSS, and JavaScript for the frontend features. Connected with PHP overall.
