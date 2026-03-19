@@ -8,6 +8,7 @@ const state = {
   reportFoundStep: "main", // "main" or "form"
 
   filters: { q: "", type: "All", category: "All" },
+  dashboardBuildingFilter: "All",
 
   claims: [],
 
@@ -17,7 +18,7 @@ const state = {
       type: "Found",
       item: "Black Wallet",
       category: "Wallet/ID",
-      location: "UC - Library",
+      location: "Mary J. Livermore Library",
       date: "2026-02-10",
       desc: "Black leather wallet with a small scratch on the front.",
       status: "Open",
@@ -28,7 +29,7 @@ const state = {
       type: "Lost",
       item: "AirPods Case",
       category: "Electronics",
-      location: "Dining Hall",
+      location: "Student Center",
       date: "2026-02-12",
       desc: "White AirPods case. Might have a small crack on the lid.",
       status: "Matching",
@@ -39,7 +40,7 @@ const state = {
       type: "Lost",
       item: "Blue Hoodie",
       category: "Clothing",
-      location: "Gym",
+      location: "Campus Rec",
       date: "2026-02-14",
       desc: "Blue hoodie, size L, UNCP logo on the chest.",
       status: "Open",
@@ -47,6 +48,20 @@ const state = {
     }
   ],
 };
+
+const BUILDINGS = [
+  "Mary J. Livermore Library",
+  "Student Center",
+  "Student Center(Hawks Nest)",
+  "Campus Recreation Center",
+  "Oxendine Science Building",
+  "Oxendine Administrative Building",
+  "Center for Student Success",
+  "Dormitory(Pine/Oak Hall)",
+  "Dormitory(North/Belk Hall)",
+  "Dormitory(Courtyard/Cypress)",
+  "Campus Police Department",
+];
 
 const view = document.getElementById("view");
 const sidebar = document.getElementById("sidebar");
@@ -77,6 +92,8 @@ function button(text, className, onClick){
   b.addEventListener("click", onClick);
   return b;
 }
+
+
 
 function card(title, bodyHtml){
   return `
@@ -141,6 +158,10 @@ function escapeHtml(str){
     .replaceAll("'","&#039;");
 }
 
+function isValidUNCPEEmail(email){
+  return /^[^\s@]+@uncp\.edu$/i.test(String(email).trim());
+}
+
 function renderHome(){
   const recent = state.reports.slice(0,3).map(r=>`
     <div class="list-item">
@@ -200,7 +221,7 @@ function renderLogin(){
         </div>
         <div class="field">
           <label>Email</label>
-          <input id="loginEmail" placeholder="julian@school.edu" />
+          <input id="loginEmail" type="email" placeholder="julian@uncp.edu" />
         </div>
 
         <div class="field">
@@ -218,8 +239,13 @@ function renderLogin(){
 
   document.getElementById("loginBtn").onclick = () => {
     const name = document.getElementById("loginName").value.trim() || "Student";
-    const email = document.getElementById("loginEmail").value.trim() || "student@school.edu";
+    const email = document.getElementById("loginEmail").value.trim();
     const isAdmin = document.getElementById("loginAdmin").checked;
+
+    if(!isValidUNCPEEmail(email)){
+      alert("Please use a valid @uncp.edu email address.");
+      return;
+    }
 
     state.user = {name, email, role: isAdmin ? "admin" : "user"};
 
@@ -249,7 +275,7 @@ function renderRegister(){
           </div>
           <div class="field">
             <label>Email</label>
-            <input id="regEmail" placeholder="julian@school.edu" />
+            <input id="regEmail" type="email" placeholder="julian@uncp.edu" />
           </div>
         </div>
 
@@ -272,7 +298,13 @@ function renderRegister(){
 
   document.getElementById("regBtn").onclick = () => {
     const name = document.getElementById("regName").value.trim() || "Student";
-    const email = document.getElementById("regEmail").value.trim() || "student@school.edu";
+    const email = document.getElementById("regEmail").value.trim();
+
+    if(!isValidUNCPEEmail(email)){
+      alert("Please use a valid @uncp.edu email address.");
+      return;
+    }
+
     state.user = {name, email, role: "user"};
 
     if(state.afterLoginRoute){
@@ -289,8 +321,13 @@ function renderRegister(){
 
 function renderDashboard(){
   const {lost, found, matching, open} = getKpis();
+  const buildingFilter = state.dashboardBuildingFilter;
 
-  const list = state.reports.slice(0,6).map(r=>`
+  const filteredReports = buildingFilter === "All"
+    ? state.reports
+    : state.reports.filter(r => r.location === buildingFilter);
+
+  const list = filteredReports.slice(0,6).map(r=>`
     <div class="list-item">
       <div>
         <div style="font-weight:900">${r.item}</div>
@@ -302,6 +339,40 @@ function renderDashboard(){
       </div>
     </div>
   `).join("");
+
+  const maxBuildingCount = Math.max(
+    ...BUILDINGS.map(b => state.reports.filter(r => r.location === b).length),
+    1
+  );
+
+  const buildingRows = BUILDINGS.map(b => {
+    const lostCount  = state.reports.filter(r => r.location === b && r.type === "Lost").length;
+    const foundCount = state.reports.filter(r => r.location === b && r.type === "Found").length;
+    const total   = lostCount + foundCount;
+    const barPct  = Math.round((total / maxBuildingCount) * 100);
+    const lostPct = total ? Math.round((lostCount / total) * 100) : 0;
+    const foundPct = total ? 100 - lostPct : 0;
+    const isSelected = buildingFilter === b;
+    return `
+      <div class="building-row${isSelected ? " selected" : ""}" data-building="${escapeHtml(b)}">
+        <div class="building-name" title="${escapeHtml(b)}">${escapeHtml(b)}</div>
+        <div class="building-bar-wrap">
+          <div class="building-bar" style="width:${Math.max(barPct,total?2:0)}%">
+            <div class="building-bar-lost"  style="width:${lostPct}%"></div>
+            <div class="building-bar-found" style="width:${foundPct}%"></div>
+          </div>
+        </div>
+        <div class="building-counts">
+          <span class="bc-lost">${lostCount}L</span>
+          <span class="bc-found">${foundCount}F</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const buildingOptions = ["All", ...BUILDINGS].map(b =>
+    `<option value="${escapeHtml(b)}" ${b === buildingFilter ? "selected" : ""}>${escapeHtml(b)}</option>`
+  ).join("");
 
   view.innerHTML = `
     <h1 class="h1">Dashboard</h1>
@@ -316,11 +387,46 @@ function renderDashboard(){
 
     <div style="height:14px"></div>
 
-    ${card("Recent Reports", `<div class="list">${list}</div>`)}
+    ${card("Activity by Building", `
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div style="display:flex; gap:14px; align-items:center; font-size:12px; color:var(--muted);">
+          <span style="display:flex;gap:6px;align-items:center;"><span class="legend-dot lost"></span>Lost</span>
+          <span style="display:flex;gap:6px;align-items:center;"><span class="legend-dot found"></span>Found</span>
+          ${buildingFilter !== "All" ? `<button class="btn" id="clearBuildingFilter" style="font-size:12px;padding:4px 10px;">Clear filter</button>` : ""}
+        </div>
+        <div class="field" style="margin:0; min-width:220px;">
+          <select id="buildingDropdown">${buildingOptions}</select>
+        </div>
+      </div>
+      <div class="building-chart">${buildingRows}</div>
+      <div style="font-size:12px; color:var(--muted); margin-top:10px;">Click a row or use the dropdown to filter recent reports below.</div>
+    `)}
+
+    <div style="height:14px"></div>
+
+    ${card((buildingFilter !== "All" ? `Recent Reports — ${buildingFilter}` : "Recent Reports"), `
+      <div class="list">${list || `<div class="p">No reports for this location.</div>`}</div>
+    `)}
   `;
 
+  document.getElementById("buildingDropdown").onchange = (e) => {
+    state.dashboardBuildingFilter = e.target.value;
+    render();
+  };
+
+  const clearBtn = document.getElementById("clearBuildingFilter");
+  if(clearBtn) clearBtn.onclick = () => { state.dashboardBuildingFilter = "All"; render(); };
+
+  document.querySelectorAll(".building-row").forEach(row => {
+    row.onclick = () => {
+      const b = row.dataset.building;
+      state.dashboardBuildingFilter = (state.dashboardBuildingFilter === b) ? "All" : b;
+      render();
+    };
+  });
+
   document.querySelectorAll("[data-open]").forEach(btn=>{
-    btn.onclick = () => go("item", { itemId: btn.dataset.open });
+    btn.onclick = (e) => { e.stopPropagation(); go("item", { itemId: btn.dataset.open }); };
   });
 }
 
@@ -433,6 +539,14 @@ function renderItemDetails(){
 
     ${card("Details", `
       <div class="p"><b>Description:</b><br/>${escapeHtml(item.desc || "No description provided.")}</div>
+      ${item.submittedBy ? `
+      <div style="height:8px"></div>
+      <div class="audit-tag">
+        <span class="audit-icon">&#128274;</span>
+        <span><b>Logged by:</b> ${escapeHtml(item.submittedBy)}</span>
+        ${item.submittedBuilding ? `<span style="color:var(--muted); font-size:12px">— ${escapeHtml(item.submittedBuilding)}</span>` : ""}
+        ${item.submittedAt ? `<span style="color:var(--muted); font-size:12px">at ${escapeHtml(item.submittedAt)}</span>` : ""}
+      </div>` : ""}
       <div style="height:10px"></div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn" id="backBtn">Back</button>
@@ -594,7 +708,10 @@ function renderReportLostForm(){
 
         <div class="field">
           <label>Where was the last place you had it? *</label>
-          <input id="itemLocation" placeholder="e.g., Library, Dining Hall, Gym" required />
+          <select id="itemLocation" required>
+            <option value="">— Select a building —</option>
+            ${BUILDINGS.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("")}
+          </select>
         </div>
 
         <div class="field">
@@ -692,12 +809,31 @@ function renderReportFound(){
 }
 
 function renderReportFoundForm(){
+  const isAdmin = state.user && state.user.role === "admin";
+
   view.innerHTML = `
     <h1 class="h1">Report Found Item</h1>
     <p class="p">Please provide details about the item you found.</p>
+    ${isAdmin ? `<div class="audit-notice">You are logged in as an admin account. Your name is required for auditing purposes.</div>` : ""}
 
     <div class="card">
       <form class="form" id="reportFoundForm">
+        ${isAdmin ? `
+        <div class="row">
+          <div class="field">
+            <label>Staff Name (Your Full Name) *</label>
+            <input id="foundStaffName" placeholder="e.g., Jane Smith" required />
+            <div style="font-size:12px; color:var(--muted); margin-top:6px">Recorded for auditing — identifies which staff member filed this report.</div>
+          </div>
+          <div class="field">
+            <label>Your Building / Department *</label>
+            <select id="foundAdminBuilding" required>
+              <option value="">— Select your building —</option>
+              ${BUILDINGS.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("")}
+            </select>
+            <div style="font-size:12px; color:var(--muted); margin-top:6px">The building where you work / found the item.</div>
+          </div>
+        </div>` : ""}
         <div class="field">
           <label>Item Name *</label>
           <input id="foundItemName" placeholder="e.g., Black Wallet, AirPods" required />
@@ -710,7 +846,10 @@ function renderReportFoundForm(){
 
         <div class="field">
           <label>Where did you find it? *</label>
-          <input id="foundItemLocation" placeholder="e.g., Library, Dining Hall, Gym" required />
+          <select id="foundItemLocation" required>
+            <option value="">— Select a building —</option>
+            ${BUILDINGS.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("")}
+          </select>
         </div>
 
         <div class="field">
@@ -739,6 +878,11 @@ function renderReportFoundForm(){
 
   document.getElementById("reportFoundForm").onsubmit = (e) => {
     e.preventDefault();
+    const isAdmin = state.user && state.user.role === "admin";
+    const staffNameEl = document.getElementById("foundStaffName");
+    const staffName = staffNameEl ? staffNameEl.value.trim() : "";
+    const adminBuildingEl = document.getElementById("foundAdminBuilding");
+    const adminBuilding = adminBuildingEl ? adminBuildingEl.value.trim() : "";
     const itemName = document.getElementById("foundItemName").value.trim();
     const itemDate = document.getElementById("foundItemDate").value;
     const itemLocation = document.getElementById("foundItemLocation").value.trim();
@@ -747,6 +891,14 @@ function renderReportFoundForm(){
 
     if(!itemName || !itemDate || !itemLocation){
       alert("Please fill in all required fields");
+      return;
+    }
+    if(isAdmin && !staffName){
+      alert("Please enter your staff name for auditing purposes.");
+      return;
+    }
+    if(isAdmin && !adminBuilding){
+      alert("Please select your building.");
       return;
     }
 
@@ -760,7 +912,10 @@ function renderReportFoundForm(){
       desc: itemDesc,
       status: "Open",
       ownerEmail: state.user.email,
-      fileName: itemFile?.name || null
+      fileName: itemFile?.name || null,
+      submittedBy: isAdmin ? staffName : null,
+      submittedBuilding: isAdmin ? adminBuilding : null,
+      submittedAt: new Date().toLocaleString(),
     });
 
     state.reportFoundStep = "main";
@@ -812,10 +967,75 @@ function renderAdminNav(){
 
 /* Minimal admin page (still works) */
 function renderAdmin(){
+  const foundReports = state.reports.filter(r => r.type === "Found");
+  const adminReports = foundReports.filter(r => r.submittedBy);
+  const totalFound = foundReports.length;
+  const totalAudit = adminReports.length;
+  const staffSet = [...new Set(adminReports.map(r => r.submittedBy))];
+
+  const auditRows = foundReports.map(r => `
+    <div class="list-item" style="flex-wrap:wrap; gap:8px;">
+      <div style="flex:1; min-width:180px;">
+        <div style="font-weight:900">${escapeHtml(r.item)}</div>
+        <div style="color:var(--muted); font-size:12px">${escapeHtml(r.location)} • ${escapeHtml(r.date)}</div>
+      </div>
+      <div style="flex:1; min-width:140px; font-size:13px;">
+        ${r.submittedBy
+          ? `<span class="audit-tag inline"><span class="audit-icon">&#128274;</span>${escapeHtml(r.submittedBy)}</span>
+             ${r.submittedBuilding ? `<div style="color:var(--muted); font-size:11px; margin-top:3px">&#127970; ${escapeHtml(r.submittedBuilding)}</div>` : ""}
+             <div style="color:var(--muted); font-size:11px; margin-top:2px">${escapeHtml(r.submittedAt || "")}</div>`
+          : `<span style="color:var(--muted); font-size:12px">User self-report</span>`
+        }
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="badge ${statusBadgeClass(r.status)}">${r.status}</span>
+        <button class="btn" data-open="${r.id}">Details</button>
+      </div>
+    </div>
+  `).join("");
+
+  const staffSummaryRows = staffSet.map(name => {
+    const staffReps = adminReports.filter(r => r.submittedBy === name);
+    const count = staffReps.length;
+    const building = staffReps[0]?.submittedBuilding || "";
+    return `<div class="list-item" style="padding:10px 14px;">
+      <div>
+        <div style="font-weight:700">${escapeHtml(name)}</div>
+        ${building ? `<div style="color:var(--muted); font-size:12px">&#127970; ${escapeHtml(building)}</div>` : ""}
+      </div>
+      <span class="badge">${count} report${count !== 1 ? "s" : ""}</span>
+    </div>`;
+  }).join("");
+
   view.innerHTML = `
     <h1 class="h1">Admin Panel</h1>
-    <p class="p">Prototype admin page (claims review can be added back next).</p>
+    <p class="p">Audit log of all Found reports. Staff-submitted entries show who logged each item.</p>
+
+    <div class="kpis" style="grid-template-columns: repeat(3,1fr);">
+      <div class="kpi"><div class="num">${totalFound}</div><div class="label">Found Reports Total</div></div>
+      <div class="kpi"><div class="num">${totalAudit}</div><div class="label">Staff-Submitted</div></div>
+      <div class="kpi"><div class="num">${staffSet.length}</div><div class="label">Staff Members Active</div></div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    ${staffSet.length ? card("Staff Activity Summary", `
+      <div class="list">${staffSummaryRows}</div>
+    `) : ""}
+
+    <div style="height:14px"></div>
+
+    ${card("Found Report Audit Log", `
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+        All Found reports in the system. Rows without a staff name were submitted by regular users.
+      </div>
+      <div class="list">${auditRows || `<div class="p">No found reports yet.</div>`}</div>
+    `)}
   `;
+
+  document.querySelectorAll("[data-open]").forEach(btn => {
+    btn.onclick = () => go("item", { itemId: btn.dataset.open });
+  });
 }
 
 // ---------- Main render ----------
