@@ -211,7 +211,7 @@ function renderHome(){
 function renderLogin(){
   view.innerHTML = `
     <h1 class="h1">Login</h1>
-    <p class="p">Prototype login — enter a name + email to continue.</p>
+    <p class="p"> Enter your Name & School email to continue.</p>
 
     <div class="card">
       <div class="form">
@@ -224,30 +224,25 @@ function renderLogin(){
           <input id="loginEmail" type="email" placeholder="julian@uncp.edu" />
         </div>
 
-        <div class="field">
-          <label style="display:flex; gap:10px; align-items:center; cursor:pointer;">
-            <input type="checkbox" id="loginAdmin" />
-            Log in as admin (prototype)
-          </label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn primary" id="loginBtn">Login</button>
+          <button class="btn" id="loginAdminBtn">Login as Admin</button>
         </div>
-
-        <button class="btn primary" id="loginBtn">Login</button>
         <button class="btn" id="toRegisterBtn">Need an account? Register</button>
       </div>
     </div>
   `;
 
-  document.getElementById("loginBtn").onclick = () => {
+  function handleLogin(asAdmin){
     const name = document.getElementById("loginName").value.trim() || "Student";
     const email = document.getElementById("loginEmail").value.trim();
-    const isAdmin = document.getElementById("loginAdmin").checked;
 
     if(!isValidUNCPEEmail(email)){
       alert("Please use a valid @uncp.edu email address.");
       return;
     }
 
-    state.user = {name, email, role: isAdmin ? "admin" : "user"};
+    state.user = {name, email, role: asAdmin ? "admin" : "user"};
 
     if(state.afterLoginRoute){
       const next = state.afterLoginRoute;
@@ -256,7 +251,10 @@ function renderLogin(){
     } else {
       go("dashboard");
     }
-  };
+  }
+
+  document.getElementById("loginBtn").onclick = () => handleLogin(false);
+  document.getElementById("loginAdminBtn").onclick = () => handleLogin(true);
 
   document.getElementById("toRegisterBtn").onclick = () => go("register");
 }
